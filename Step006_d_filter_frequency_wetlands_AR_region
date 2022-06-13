@@ -1,0 +1,208 @@
+/**** Start of imports. If edited, may not auto-convert in the playground. ****/
+var geometryPampa = /* color: #d63000 */ee.Geometry.Polygon(
+        [[[-58.235066877772624, -30.60692415433937],
+          [-55.3812292750718, -31.536184439107085],
+          [-53.357137190272624, -34.05923401863392],
+          [-49.577840315272624, -30.17098716535918],
+          [-49.865449044187244, -29.047801031923346],
+          [-50.496256143190635, -28.306864654328834],
+          [-52.082723127772624, -27.242150238166413],
+          [-53.84697511154161, -27.06728423431273],
+          [-55.620320784022624, -27.807229402344642]]]),
+    geometry = /* color: #d63000 */ee.Geometry.MultiPoint(
+        [[-58.70932592791612, -36.404756692866655],
+         [-59.67291208594361, -37.40850388133142]]);
+/***** End of imports. If edited, may not auto-convert in the playground. *****/
+
+var regiao = '1';  
+//var regiao = 2;  
+//var regiao ='3';  
+//var regiao = 4;  
+//var regiao = 5;  
+//var regiao = 6;  
+//var regiao = 7;  
+
+ 
+var versionIn = '_class_v_2_filtPz'
+var versionOut = '_class_v_1_freq'
+
+
+//var version = '20'
+var bioma = "PAMPA"
+var regioesCollection = ee.FeatureCollection('projects/MapBiomas_Pampa/ANCILLARY_DATA/Zonas_Pampa_ARG_buffer10km_Zona4manual')
+var myRegion = regioesCollection.filterMetadata('idZona', 'equals', regiao) //region_ID
+
+var dirout = 'projects/MapBiomas_Pampa/WORKSPACE/Argentina/IC_class_col1_filtros/'
+var palettes = require('users/mapbiomas/modules:Palettes.js');
+var classIn = ee.Image(dirout + 'class_' + String(regiao) + versionIn);
+
+print(classIn)
+var palettes = require('users/mapbiomas/modules:Palettes.js');
+var pal = palettes.get('classification5');
+
+/*var vis = {
+      bands: 'classification_2010',
+      min:0,
+      max:34,
+      palette: pal,
+      format: 'png'
+    };*/
+    
+var vis = { 'min': 0, 'max': 45,  'palette': palettes.get('classification5')};
+    
+
+
+var filtrofreq = function(mapbiomas){
+  ////////Calculando frequencias
+  //////////////////////
+  ////////////////////
+  // General rule
+  var exp = '100*((b(0)+b(1)+b(2)+b(3)+b(4)+b(5)+b(6)+b(7)+b(8)+b(9)+b(10)+b(11)+b(12)+b(13)+b(14)+b(15)' +
+      '+b(16)+b(17)+b(18)+b(19))/20 )';
+  
+// get frequency
+// get frequency
+var bcerradoFreq = mapbiomas.eq(3).expression(exp);
+var babiertoFreq  = mapbiomas.eq(4).expression(exp);
+var florestacionFreq = mapbiomas.eq(9).expression(exp);
+var umiFreq = mapbiomas.eq(11).expression(exp);
+var grassFreq = mapbiomas.eq(12).expression(exp);
+var pastFreq = mapbiomas.eq(15).expression(exp);
+var agricFreq = mapbiomas.eq(18).expression(exp);
+var anvFreq = mapbiomas.eq(22).expression(exp);
+var aguaFreq = mapbiomas.eq(33).expression(exp);  
+
+/*
+//////Máscara de vegetacao nativa e agua (freq >x%)
+var vegMask = ee.Image(0)
+                         .where((florFreq
+                         .add(umiFreq).add(grassFreq)
+                         .add(anvFreq).add(arochFreq)
+                         .add(aguaFreq))
+                         .gt(80), 1)
+  
+  
+/////Mapa base: 
+var  vegMap = ee.Image(0)
+                        .where(vegMask.eq(1).and(florFreq.gt(90)), 3)
+                        .where(vegMask.eq(1).and(umiFreq.gt(51)), 11)
+                        .where(vegMask.eq(1).and(grassFreq.gt(90)), 12)
+                        .where(vegMask.eq(1).and(anvFreq.gt(90)), 22)
+                        .where(vegMask.eq(1).and(arochFreq.gt(90)), 29)
+                        .where(vegMask.eq(1).and(aguaFreq.gt(90)), 33)
+                        
+*/
+//////Máscara de agricultura, umida e agua (freq >x%) - usar na regiao 7 e talvez na regiao 5
+
+var vegMask = ee.Image(0)
+                         .where((grassFreq
+                         .add(umiFreq)
+                         .add(bcerradoFreq)
+                         .add(babiertoFreq)
+                         .add(aguaFreq))
+                         .gt(90), 1)
+  
+/////Mapa base: 
+var vegMap = ee.Image(0)
+                        .where(vegMask.eq(1).and(umiFreq.gt(49)), 11)
+                       // .and(bcerradoFreq.add(babiertoFreq).lt(20))), 11)
+                        //.and(image_in.eq(3)), 11)
+                        
+var vegMask2 = ee.Image(0)
+                         .where((pastFreq
+                         .add(umiFreq)
+                         .add(bcerradoFreq)
+                         .add(babiertoFreq)
+                         .add(grassFreq)
+                         .add(agricFreq))
+                         .gt(90), 1)
+
+var image_moda = mapbiomas.reduce(ee.Reducer.mode());
+
+var vegMap2 = ee.Image (0)
+                          .where(vegMask2.eq(1).and(umiFreq.lt(30)),image_moda)
+
+
+
+
+
+                          
+                     //     .and(image_in.eq(11)), image_moda)
+
+
+
+//var image_moda = image_in.reduce(ee.Reducer.mode());
+//var vegMap = ee.Image(0)
+              //.where(vegMask.eq(1).and(umiFreq.gt(50), image_moda)   
+
+
+//var image_moda = image_in.reduce(ee.Reducer.mode());
+//var vegMask = ee.Image(0)
+//                           .where(arochFreq.lt(45), 1)
+//var  vegMap = ee.Image(0)
+//                          .where(vegMask.eq(1), image_moda)
+//image_in = image_in.where(vegMap.and(image_in.eq(29)), vegMap)
+
+/*
+/////Mapa base: 
+var vegMap = ee.Image(0)
+                        .where(vegMask.eq(1).and(aguaFreq.gt(33)), 33)    
+                        .where(vegMask.eq(1).and(umiFreq.gt(33)), 11)   
+*/
+
+//var saida2 = mapbiomas.where(vegMap2, vegMap2)
+vegMap = vegMap.updateMask(vegMap.neq(0))//.clip(BiomaPA)
+vegMap2 = vegMap2.updateMask(vegMap2.neq(0))//.clip(BiomaPA)
+var saida = mapbiomas.where(vegMap, vegMap)
+saida = saida.where(vegMap2.and(saida.eq(11)), vegMap2)
+//saida = saida.where(NaovegMask, NaovegMask)
+return saida;
+}
+
+
+  
+  var saida = filtrofreq(classIn)
+  saida = saida
+  .set('collection', 4)
+  .set('version', versionOut)
+  .set('biome', bioma)
+
+print(classIn)
+print(saida)
+
+Map.addLayer(classIn.select('classification_2010'), vis, 'image');
+
+Map.addLayer(saida.select('classification_2010'), vis, 'filtered');
+
+Map.addLayer(classIn,{}, 'original todo');
+
+Map.addLayer(saida,{}, 'filtered todo');
+
+Export.image.toAsset({
+    'image': saida,
+    'description':'class_' + String(regiao) + versionOut,
+    'assetId': dirout +  'class_' + String(regiao) + versionOut,
+    'pyramidingPolicy': {
+        '.default': 'mode'
+    },
+    'region': myRegion.geometry(),
+    'scale': 30,
+    'maxPixels': 1e13
+});
+
+var utils = require("users/schirmbeckj/PampaTriNacional:Utils/utils_Pampa.js")
+var ts_tools = require("users/schirmbeckj/PampaTriNacional:Utils/time_series.js")
+var panel = null;
+var chk_refresh_plot_flag = null;
+var get_panel_chart_ts = function(){
+  
+  Map.onClick(function(point){
+    var punto = ee.Geometry.Point([point["lon"], point["lat"]]);
+    
+    if(chk_refresh_plot_flag.getValue()){
+      panel.remove(panel.widgets().get(1))
+      panel.insert(1,ts_tools.get_time_serie_plot(punto));
+      
+    }
+  })};
+

@@ -1,0 +1,732 @@
+/**** Start of imports. If edited, may not auto-convert in the playground. ****/
+var N2_Pastizal = /* color: #b8af4f */ee.FeatureCollection(
+        [ee.Feature(
+            ee.Geometry.Polygon(
+                [[[-54.85425983871383, -32.33449541716038],
+                  [-54.85082661117477, -32.33467672142686],
+                  [-54.849882473601525, -32.33206590495133],
+                  [-54.85305820907516, -32.33083299321701],
+                  [-54.85593353713912, -32.33387897993783]]]),
+            {
+              "reference": 12,
+              "system:index": "0"
+            })]),
+    N2_Bosque = /* color: #1f4423 */ee.FeatureCollection([]),
+    N2_Area_no_vegetada = /* color: #ea9999 */ee.FeatureCollection([]);
+/***** End of imports. If edited, may not auto-convert in the playground. *****/
+var bioma = 'PampaUruguay' 
+var region_name =  'sedimentaria_Oeste'
+var region_ID = 1
+//var region_ID = 2
+//var region_ID = 3
+//var region_ID = 4
+ 
+var version_samples = '1'
+var version_class_out = '1_2000'   // Version that will be saved
+var stage = 'pre-class'
+
+var sampleComplementar = 200;
+
+var nSamplesMin = 200;
+var nSamplesMax = 2000;
+
+// 02, 03, 04, 09, 11, 12, 15, 18, 21, 22, 33
+var percent_02 = 100
+var percent_03 = 100
+var percent_04 = 100
+var percent_09 = 100
+var percent_11 = 50
+var percent_12 = 100
+var percent_15 = 100
+var percent_18 = 100
+var percent_21 = 100
+var percent_22 = 100
+var percent_33 = 100
+
+
+
+//nTrees padrao: 100
+var nTrees = 40;
+var variablesPerSplit = 4 //mtry
+var minLeafPopulation = 25  //Nnodes
+var seed = 1
+var colors = [
+              "006400", //3      
+              "f1c232", //13
+              "fff3bf", //21
+              "ff99ff", //25
+              "0000ff", //33
+              ];
+// Landsat images that will be added to Layers
+//var year_list = [2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019]
+var year_list = [2018,2019]
+
+//************************************
+//Do not change bellow this point
+
+//var grids = ee.FeatureCollection("projects/MapBiomas_Pampa/ANCILLARY_DATA/grids");
+//var myGrid = grids.filterMetadata('name', 'equals', grid_name)
+
+var regions = ee.FeatureCollection('projects/MapBiomas_Pampa/WORKSPACE/Uruguay/RegionesUy')
+print(regions)
+var myRegion = regions.filterMetadata('ECOZONA', 'equals', region_name) //region_ID
+//Map.addLayer(myRegion)
+
+
+
+var dirasset = 'projects/MapBiomas_Pampa/MOSAICS/mosaics_c1';
+var dir_Samples = 'projects/MapBiomas_Pampa/SAMPLES/'
+//var dir_pre_class = 'projects/MapBiomas_Pampa/COLLECTION1/pre_classification/'
+var dir_pre_class = 'projects/MapBiomas_Pampa/WORKSPACE/Uruguay/IC_Pruebas_Preclasificaciones/'
+
+var palettes = require('users/mapbiomas/modules:Palettes.js');
+
+///////////////////////////
+// construção de uma interface
+var names = [
+              "[03] Forest Formation",
+              "[13] Other Natural Non Forest",
+              "[21] Other Agriculture Land",
+              "[25] Other Non Vegetated Area",
+              "[33] Water",
+            ];
+var colors = [
+              "006400", //3      
+              "f1c232", //13
+              "fff3bf", //21
+              "ff99ff", //25
+              "0000ff", //33
+              ]
+var vis = {
+    'min': 0,
+    'max': 34,
+    'palette': palettes.get('classification2')
+};
+
+/*
+//              
+var legend = ui.Panel({
+  style: {
+    position: 'bottom-left',
+    padding: '8px 15px'
+  }
+});
+
+// Create and add the legend title.
+var legendTitle = ui.Label({
+  value: 'MapBiomas Indonesia Col. 1',
+  style: {
+    fontWeight: 'bold',
+    fontSize: '16px',
+    margin: '0 0 4px 0',
+    padding: '0'
+  }
+});
+
+legend.add(legendTitle);
+
+// var loading = ui.Label('Legend:', {margin: '2px 0 4px 0'});
+// legend.add(loading);
+
+var makeRow = function(color, name) {
+  // Create the label that is actually the colored box.
+  var colorBox = ui.Label({
+    style: {
+      backgroundColor: '#' + color,
+      // Use padding to give the box height and width.
+      padding: '8px',
+      margin: '0 0 4px 0'
+    }
+  });
+
+  // Create the label filled with the description text.
+  var description = ui.Label({
+    value: name,
+    style: {margin: '0 0 4px 6px'}
+  });
+
+  return ui.Panel({
+    widgets: [colorBox, description],
+    layout: ui.Panel.Layout.Flow('horizontal')
+  });
+};
+
+for (var i = 0; i < names.length; i++){
+legend.add(makeRow(colors[i], names[i]));
+}
+/////////////////////////////////
+*/
+var visParMedian2 = {'bands':['median_swir1','median_nir','median_red'], 'gain':[0.08, 0.06,0.2],'gamma':0.5 };
+
+var files_list = [
+'projects/MapBiomas_Pampa/SAMPLES/C1/PampaUruguay/PreclassSH-21-Z-A-points_v1',
+'projects/MapBiomas_Pampa/SAMPLES/C1/PampaUruguay/PreclassSH-21-Y-B-points_v1',
+'projects/MapBiomas_Pampa/SAMPLES/C1/PampaUruguay/PreclassSH-21-Y-D-points_v1',
+'projects/MapBiomas_Pampa/SAMPLES/C1/PampaUruguay/PreclassSH-21-Z-A-points_v1',
+'projects/MapBiomas_Pampa/SAMPLES/C1/PampaUruguay/PreclassSH-21-Z-C-points_v1',
+'projects/MapBiomas_Pampa/SAMPLES/C1/PampaUruguay/PreclassSH-21-Z-D-points_v1',
+'projects/MapBiomas_Pampa/SAMPLES/C1/PampaUruguay/PreclassSI-21-V-B-points_v1',
+'projects/MapBiomas_Pampa/SAMPLES/C1/PampaUruguay/PreclassSI-21-V-D-points_v1',
+'projects/MapBiomas_Pampa/SAMPLES/C1/PampaUruguay/PreclassSI-21-X-A-points_v1',
+'projects/MapBiomas_Pampa/SAMPLES/C1/PampaUruguay/PreclassSI-21-X-B-points_v1',
+'projects/MapBiomas_Pampa/SAMPLES/C1/PampaUruguay/PreclassSI-21-X-C-points_v1',
+'projects/MapBiomas_Pampa/SAMPLES/C1/PampaUruguay/PreclassSI-21-X-D-points_v1',
+'projects/MapBiomas_Pampa/SAMPLES/C1/PampaUruguay/PreclassSI-21-Y-B-points_v1',
+'projects/MapBiomas_Pampa/SAMPLES/C1/PampaUruguay/PreclassSI-21-Z-A-points_v1',
+'projects/MapBiomas_Pampa/SAMPLES/C1/PampaUruguay/PreclassSI-21-Z-B-points_v1',
+'projects/MapBiomas_Pampa/SAMPLES/C1/PampaUruguay/PreclassSI-22-V-A-points_v1',
+'projects/MapBiomas_Pampa/SAMPLES/C1/PampaUruguay/PreclassSI-22-V-C-points_v1',
+'projects/MapBiomas_Pampa/SAMPLES/C1/PampaUruguay/PreclassSI-22-Y-A-points_v1'
+]
+var colecao_pontos = ee.FeatureCollection([])
+
+for (var file_id in files_list){
+  var file = files_list[file_id];
+  colecao_pontos = colecao_pontos.merge(ee.FeatureCollection(file))
+}
+var totalSample = colecao_pontos
+                  .filterMetadata('type', 'equals', 'training')
+                  .filterBounds(myRegion)
+
+print(colecao_pontos.first())
+/*
+Map.addLayer(colecao_pontos, {},'Puntos todos UY')
+Map.addLayer(totalSample, {},'Puntos region UY')
+print('Puntos todos UY',colecao_pontos.size())
+print('Puntos region UY',totalSample.size())
+
+//print(colecao_pontos.filterMetadata('reference', 'equals', 15).size())
+//print(colecao_pontos.filterMetadata('reference', 'equals', 18).size())
+//print(colecao_pontos.filterMetadata('reference', 'equals', 21).size())
+*/
+
+
+//var totalSample = ee.FeatureCollection(dir_Samples + region_institution + '/' + grid_name+'-points_v'+version_samples)
+//                  .filterMetadata('type', 'equals', 'training')
+//print(totalSample)
+
+var blank = ee.Image(0).mask(0);
+var outline = blank.paint(myRegion, 'AA0000', 2); 
+var visPar = {'palette':'000000','opacity': 0.6};
+Map.addLayer(outline, visPar, region_name, false);
+
+//------------------------------------------------------------------
+// User defined functions
+//------------------------------------------------------------------
+/*
+ * 
+ * @param {*} collection 
+ * @param {*} seed 
+ */
+
+var shuffle = function (collection, seed) {
+
+    // Adds a column of deterministic pseudorandom numbers to a collection.
+    // The range 0 (inclusive) to 1000000000 (exclusive).
+    collection = collection.randomColumn('random', seed || 1)
+        .sort('random', true)
+        .map(
+            function (feature) {
+                var rescaled = ee.Number(feature.get('random'))
+                    .multiply(1000000000)
+                    .round();
+                return feature.set('new_id', rescaled);
+            }
+        );
+
+    // list of random ids
+    var randomIdList = ee.List(
+        collection.reduceColumns(ee.Reducer.toList(), ['new_id'])
+        .get('list'));
+
+    // list of sequential ids
+    var sequentialIdList = ee.List.sequence(1, collection.size());
+
+    // set new ids
+    var shuffled = collection.remap(randomIdList, sequentialIdList, 'new_id');
+
+    return shuffled;
+};
+
+
+// shuffle points and reindex them
+var shuffledtraining = shuffle(totalSample, 2)
+
+// definição de tamanho proporcional as classes para as amostras
+// 02, 03, 04, 09, 11, 12, 15, 18, 21, 22, 33
+
+var num_train_02 = ee.Number(nSamplesMax * percent_02 / 100).round().int16().max(nSamplesMin)
+var train_02 = shuffledtraining.filterMetadata('reference', 'equals', 2).limit(num_train_02)
+var num_train_03 = ee.Number(nSamplesMax * percent_03 / 100).round().int16().max(nSamplesMin)
+var train_03 = shuffledtraining.filterMetadata('reference', 'equals', 3).limit(num_train_03)
+var num_train_04 = ee.Number(nSamplesMax * percent_04 / 100).round().int16().max(nSamplesMin)
+var train_04 = shuffledtraining.filterMetadata('reference', 'equals', 4).limit(num_train_04)
+var num_train_09 = ee.Number(nSamplesMax * percent_09 / 100).round().int16().max(nSamplesMin)
+var train_09 = shuffledtraining.filterMetadata('reference', 'equals', 9).limit(num_train_09)
+var num_train_11 = ee.Number(nSamplesMax * percent_11 / 100).round().int16().max(nSamplesMin)
+var train_11 = shuffledtraining.filterMetadata('reference', 'equals', 11).limit(num_train_11)
+var num_train_12 = ee.Number(nSamplesMax * percent_12 / 100).round().int16().max(nSamplesMin)
+var train_12 = shuffledtraining.filterMetadata('reference', 'equals', 12).limit(num_train_12)
+var num_train_15 = ee.Number(nSamplesMax * percent_15 / 100).round().int16().max(nSamplesMin)
+var train_15 = shuffledtraining.filterMetadata('reference', 'equals', 15).limit(num_train_15)
+var num_train_18 = ee.Number(nSamplesMax * percent_18 / 100).round().int16().max(nSamplesMin)
+var train_18 = shuffledtraining.filterMetadata('reference', 'equals', 18).limit(num_train_18)
+var num_train_21 = ee.Number(nSamplesMax * percent_21 / 100).round().int16().max(nSamplesMin)
+var train_21 = shuffledtraining.filterMetadata('reference', 'equals', 21).limit(num_train_21)
+var num_train_22 = ee.Number(nSamplesMax * percent_22 / 100).round().int16().max(nSamplesMin)
+var train_22 = shuffledtraining.filterMetadata('reference', 'equals', 22).limit(num_train_22)
+var num_train_33 = ee.Number(nSamplesMax * percent_33 / 100).round().int16().max(nSamplesMin)
+var train_33 = shuffledtraining.filterMetadata('reference', 'equals', 33).limit(num_train_33)
+
+//var train_15_18 = train_15.merge(train_18)
+//    .map(function (feature) {
+//        return feature.set('reference', 21);
+//    });
+//train_21 = train_21.merge(train_15_18)
+
+
+// 02, 03, 04, 09, 11, 12, 15, 18, 21, 22, 33
+var balancedtraining =  train_02            // N2_Bosque,
+                          //.merge(train_03)  //N3_Bosque_cerrado,
+                          //.merge(train_04)  //N3_Bosque_abierto,
+                          .merge(train_09)  //N2_Plantaciones_forestales,
+                          .merge(train_11)  //N2_Area_humeda_natural,
+                          .merge(train_12)  //N2_Pastizal,
+                          //.merge(train_15)  //N2_Pastura,
+                          //.merge(train_18)  //N2_Agricultura,
+                          .merge(train_21)  //N2_Agricultura_Pastura,
+                          .merge(train_22)  //N2_Area_no_vegetada,
+                          .merge(train_33)  //N2_Cuerpos_de_agua];
+
+
+var terrain = ee.Image("JAXA/ALOS/AW3D30_V1_1").select("AVE");
+var slope = ee.Terrain.slope(terrain)
+var square = ee.Kernel.square({radius: 5});
+
+var bandNames = ee.List([
+    'amp_evi2',
+    'amp_gv',
+    'amp_ndfi',
+    'amp_ndvi',
+    'amp_ndwi',
+    'amp_npv',
+    'amp_sefi',
+    'amp_soil',
+    'amp_wefi',
+    'median_blue',
+    'median_blue_dry',
+    'median_blue_wet',
+    'median_cai',
+    'median_cai_dry',
+    'median_cai_wet',
+    'median_cloud',
+    'median_evi2',
+    'median_evi2_dry',
+    'median_evi2_wet',
+    'median_fns',
+    'median_fns_dry',
+    'median_fns_wet',
+    'median_gcvi',
+    'median_gcvi_dry',
+    'median_gcvi_wet',
+    'median_green',
+    'median_green_dry',
+    'median_green_wet',
+    'median_gv',
+    'median_gvs',
+    'median_gvs_dry',
+    'median_gvs_wet',
+    'median_hallcover',
+    'median_ndfi',
+    'median_ndfi_dry',
+    'median_ndfi_wet',
+    'median_ndvi',
+    'median_ndvi_dry',
+    'median_ndvi_wet',
+    'median_ndwi',
+    'median_ndwi_dry',
+    'median_ndwi_wet',
+    'median_nir',
+    'median_nir_dry',
+    'median_nir_wet',
+    'median_npv',
+    'median_pri',
+    'median_pri_dry',
+    'median_pri_wet',
+    'median_red',
+    'median_red_dry',
+    'median_red_wet',
+    'median_savi',
+    'median_savi_dry',
+    'median_savi_wet',
+    'median_sefi',
+    'median_sefi_dry',
+    'median_sefi_wet',
+    'median_shade',
+    'median_soil',
+    'median_swir1',
+    'median_swir1_dry',
+    'median_swir1_wet',
+    'median_swir2',
+    'median_swir2_dry',
+    'median_swir2_wet',
+    'median_temp',
+    'median_wefi',
+    'median_wefi_dry',
+    'median_wefi_wet',
+    'min_blue',
+    'min_green',
+    'min_nir',
+    'min_red',
+    'min_swir1',
+    'min_swir2',
+    'min_temp',
+    'slope',
+    'stdDev_blue',
+    'stdDev_cai',
+    'stdDev_cloud',
+    'stdDev_evi2',
+    'stdDev_fns',
+    'stdDev_gcvi',
+    'stdDev_green',
+    'stdDev_gv',
+    'stdDev_gvs',
+    'stdDev_hallcover',
+    'stdDev_ndfi',
+    'stdDev_ndvi',
+    'stdDev_ndwi',
+    'stdDev_nir',
+    'stdDev_npv',
+    'stdDev_pri',
+    'stdDev_red',
+    'stdDev_savi',
+    'stdDev_sefi',
+    'stdDev_shade',
+    'stdDev_soil',
+    'stdDev_swir1',
+    'stdDev_swir2',
+    'stdDev_temp',
+    'stdDev_wefi',
+    'textG',
+    'longitude',
+    'latitude',
+    'amp_ndvi_3anos'
+]);
+var bandNamesShort = ee.List([
+'a_evi2',
+'a_gv',
+'a_ndfi',
+'a_ndvi',
+'a_ndwi',
+'a_npv',
+'a_sefi',
+'a_soil',
+'a_wefi',
+'m_blue',
+'m_blue_d',
+'m_blue_w',
+'m_cai',
+'m_cai_d',
+'m_cai_w',
+'m_cloud',
+'m_evi2',
+'m_evi2_d',
+'m_evi2_w',
+'m_fns',
+'m_fns_d',
+'m_fns_w',
+'m_gcvi',
+'m_gcvi_d',
+'m_gcvi_w',
+'m_green',
+'m_green_d',
+'m_green_w',
+'m_gv',
+'m_gvs',
+'m_gvs_d',
+'m_gvs_w',
+'m_hallcov',
+'m_ndfi',
+'m_ndfi_d',
+'m_ndfi_w',
+'m_ndvi',
+'m_ndvi_d',
+'m_ndvi_w',
+'m_ndwi',
+'m_ndwi_d',
+'m_ndwi_w',
+'m_nir',
+'m_nir_d',
+'m_nir_w',
+'m_npv',
+'m_pri',
+'m_pri_d',
+'m_pri_w',
+'m_red',
+'m_red_d',
+'m_red_w',
+'m_savi',
+'m_savi_d',
+'m_savi_w',
+'m_sefi',
+'m_sefi_d',
+'m_sefi_w',
+'m_shade',
+'m_soil',
+'m_sw1',
+'m_sw1_d',
+'m_sw1_w',
+'m_sw2',
+'m_sw2_d',
+'m_sw2_w',
+'m_temp',
+'m_wefi',
+'m_wefi_d',
+'m_wefi_w',
+'min_blue',
+'min_green',
+'min_nir',
+'min_red',
+'min_sw1',
+'min_sw2',
+'min_temp',
+'slope',
+'sD_blue',
+'sD_cai',
+'sD_cloud',
+'sD_evi2',
+'sD_fns',
+'sD_gcvi',
+'sD_green',
+'sD_gv',
+'sD_gvs',
+'sD_hallcov',
+'sD_ndfi',
+'sD_ndvi',
+'sD_ndwi',
+'sD_nir',
+'sD_npv',
+'sD_pri',
+'sD_red',
+'sD_savi',
+'sD_sefi',
+'sD_shade',
+'sD_soil',
+'sD_sw1',
+'sD_sw2',
+'sD_temp',
+'sD_wefi',
+'textG',
+'long',
+'lat',
+'a_ndvi_3'])
+  
+
+var visParMedian2 = {'bands':['median_swir1','median_nir','median_red'], 'gain':[0.08, 0.06,0.2],'gamma':0.5 };
+
+var mosaicoTotal2000 = ee.ImageCollection(dirasset)
+                  .filterMetadata('biome', 'equals', bioma)
+                  .filterMetadata('year', 'equals', 2000)
+                  .filterBounds(myRegion)
+                  .mosaic()
+                  .clip(myRegion)
+Map.addLayer(mosaicoTotal2000, visParMedian2, 'Land_'+ '2000' + '_', false);  
+
+
+var mosaicoTotal2010 = ee.ImageCollection(dirasset)
+                  .filterMetadata('biome', 'equals', bioma)
+                  .filterMetadata('year', 'equals', 2010)
+                  .filterBounds(myRegion)
+                  .mosaic()
+                  .clip(myRegion)
+Map.addLayer(mosaicoTotal2010, visParMedian2, 'Land_'+ '2010' + '_', false);  
+
+
+for (var year_id in year_list){
+  var year = year_list[year_id]
+
+  var mosaicoTotal = ee.ImageCollection(dirasset)
+                    .filterMetadata('biome', 'equals', bioma)
+                    .filterMetadata('year', 'equals', year)
+                    .filterBounds(myRegion)
+                    .mosaic()
+                    .clip(myRegion)
+  Map.addLayer(mosaicoTotal, visParMedian2, 'Land_'+ year + '_', false);  
+
+ //
+  //mosaicoTotal = mosaicoTotal.clip(myRegion)
+    
+  if(year == 2000){//usa o valor do ano como apmlitude
+    //var amp3anos = max3anos.subtract(min3anos).rename('amp_ndvi_3anos')
+    var min3anos = mosaicoTotal.select('median_ndvi_dry')
+    var max3anos = mosaicoTotal.select('median_ndvi_wet')
+  }
+  if (year == 2001){//usa os 2 anos anteriores como amplitude
+    //var amp3anos = max3anos.subtract(min3anos).rename('amp_ndvi_3anos')
+    var mosaico1ano_antes = ee.ImageCollection(dirasset)
+                    .filterMetadata('biome', 'equals', bioma)
+                    .filterMetadata('year', 'equals', ( year - 1))
+                    .filterBounds(myRegion)
+                    .mosaic()
+    var min3years = ee.ImageCollection.fromImages([mosaicoTotal.select('median_ndvi_dry'),
+                                                mosaico1ano_antes.select('median_ndvi_dry')]).min()
+    var max3anos = ee.ImageCollection.fromImages([mosaicoTotal.select('median_ndvi_wet'),
+                                                mosaico1ano_antes.select('median_ndvi_wet')]).max()
+  }
+  if (year > 2001){
+    var mosaico1ano_antes = ee.ImageCollection(dirasset)
+                    .filterMetadata('biome', 'equals', bioma)
+                    .filterMetadata('year', 'equals', ( year - 1))
+                    .filterBounds(myRegion)
+                    .mosaic()
+    var mosaico2anos_antes = ee.ImageCollection(dirasset)
+                    .filterMetadata('biome', 'equals', bioma)
+                    .filterMetadata('year', 'equals', ( year - 2))
+                    .filterBounds(myRegion)
+                    .mosaic()
+    var min3anos = ee.ImageCollection.fromImages([mosaicoTotal.select('median_ndvi_dry'),
+                                                mosaico1ano_antes.select('median_ndvi_dry'),
+                                                mosaico2anos_antes.select('median_ndvi_dry')]).min()
+    var max3anos = ee.ImageCollection.fromImages([mosaicoTotal.select('median_ndvi_wet'),
+                                                mosaico1ano_antes.select('median_ndvi_wet'),
+                                                mosaico2anos_antes.select('median_ndvi_wet')]).max()
+  }
+  var amp3anos = max3anos.subtract(min3anos).rename('amp_ndvi_3anos')
+  
+  mosaicoTotal = mosaicoTotal.addBands(amp3anos)
+  
+  var ll = ee.Image.pixelLonLat().clip(myRegion)
+  var long = ll.select('longitude').add(0).multiply(-1).multiply(1000).toInt16()
+  var lati = ll.select('latitude').add(0).multiply(-1).multiply(1000).toInt16()
+  
+  mosaicoTotal = mosaicoTotal.addBands(long.rename('longitude'))
+  mosaicoTotal = mosaicoTotal.addBands(lati.rename('latitude' ))    
+
+  mosaicoTotal = mosaicoTotal.addBands(slope.int8().clip(myRegion))
+  var entropyG = mosaicoTotal.select('median_green').entropy(square);
+  mosaicoTotal = mosaicoTotal.addBands(entropyG.select([0],['textG']).multiply(100).int16())
+  mosaicoTotal = mosaicoTotal.select(bandNames,bandNamesShort)
+
+  //var training_img = mosaicoTotal.sampleRegions(balancedtraining, ['reference'], {'scale': 30, 'tileScale':4} )
+  var training_img = mosaicoTotal.sampleRegions({
+        'collection': balancedtraining,
+        'scale': 30,
+        'tileScale': 4,
+        'geometries': true
+    })
+
+
+/////////////// Muestras Pastizal////////////////////
+  var amostraTotal = N2_Pastizal//.merge(N2_Bosque)
+  
+  var amostraTotalimg = amostraTotal.reduceToImage({properties: ['reference'],reducer: ee.Reducer.first()})
+  amostraTotalimg = amostraTotalimg.select([0],['reference'])
+  
+  var training_pastizal = mosaicoTotal.select(bandNamesShort).addBands(amostraTotalimg).sample({'numPixels': sampleComplementar, 'region': N2_Pastizal.filterBounds(myRegion), 'scale': 30, 'seed': 1,'tileScale':4,geometries:true});
+  //var training_bosque = mosaicoTotal.select(bandNamesShort).addBands(amostraTotalimg).sample({'numPixels': sampleComplementar, 'region': N2_Bosque.filterBounds(myRegion), 'scale': 30, 'seed': 1,'tileScale':4,geometries:true});
+
+  var trainingComplementar = training_pastizal
+                            //.merge(training_bosque)
+  
+  print('comple', trainingComplementar)                          
+  print('form cartas', training_img.size())
+  
+  training_img = training_img.merge(trainingComplementar)
+  
+  print('form cartas + comple',training_img.size())
+  
+
+/*
+//////////////Muestras Areas no vegetadas/////////////////////
+
+var amostraTotal_1 = N2_Area_no_vegetada//.merge(N2_Bosque)
+  
+  var amostraTotalimg_1 = amostraTotal_1.reduceToImage({properties: ['reference'],reducer: ee.Reducer.first()})
+  amostraTotalimg_1 = amostraTotalimg_1.select([0],['reference'])
+
+ var training_Area_no_vegetada = mosaicoTotal.select(bandNamesShort).addBands(amostraTotalimg_1).sample({'numPixels': sampleComplementar, 'region': N2_Area_no_vegetada.filterBounds(myRegion), 'scale': 30, 'seed': 1,'tileScale':4,geometries:true});
+
+ var trainingComplementar_1 = training_Area_no_vegetada
+                           // .merge(training_bosque)
+  
+  print('comple NV', trainingComplementar_1)                          
+  print('form cartas', training_img.size())
+  
+  training_img = training_img.merge(trainingComplementar_1)
+  
+  print('form cartas + comple NV',training_img.size())
+
+///////////////////////////////////////////////////////////////////////////////////////
+*/
+
+
+  var classifier = ee.Classifier.randomForest({
+            'numberOfTrees': nTrees,
+            'variablesPerSplit': variablesPerSplit, 
+            'minLeafPopulation': minLeafPopulation, 
+            'seed': seed}).train(training_img, 'reference', bandNamesShort);
+            
+  var classified = mosaicoTotal.classify(classifier).mask(mosaicoTotal.select('m_blue'));
+  classified = classified.select(['classification'],['classification_'+year]).clip(myRegion).toInt8()
+  Map.addLayer(classified, vis, 'RF' + year + "_" +region_name, false);
+  
+  if (year_id == 0){ var classified00a19 = classified }  
+  else {classified00a19 = classified00a19.addBands(classified); }
+  
+}
+
+//Map.add(legend);
+classified00a19 = classified00a19
+.set('collection', 1)
+.set('version', version_class_out)
+.set('region_name', region_name)
+.set('step', stage)
+.set('type', 'region')
+
+print(classified00a19)
+
+Export.image.toAsset({
+  "image": classified00a19.toInt8(),
+  "description": region_name + '_class_v_' + version_class_out,
+  "assetId": dir_pre_class + stage + '_' + region_name +'_class_v_' + version_class_out,
+  "scale": 30,
+  "pyramidingPolicy": {
+      '.default': 'mode'
+  },
+  "maxPixels": 1e13,
+  "region": myRegion
+});    
+
+var utils = require("users/schirmbeckj/PampaTriNacional:Utils/utils_Pampa.js")
+var ts_tools = require("users/schirmbeckj/PampaTriNacional:Utils/time_series.js")
+
+
+var panel = null;
+var chk_refresh_plot_flag = null;
+var get_panel_chart_ts = function(){
+  
+  Map.onClick(function(point){
+    var punto = ee.Geometry.Point([point["lon"], point["lat"]]);
+    
+    if(chk_refresh_plot_flag.getValue()){
+      panel.remove(panel.widgets().get(1))
+      panel.insert(1,ts_tools.get_time_serie_plot(punto));
+      
+    }
+    
+  });
+  
+  chk_refresh_plot_flag = ui.Checkbox("¿Actualizar serie?")
+  
+  var panel = ui.Panel({
+    widgets: [chk_refresh_plot_flag],
+    layout: ui.Panel.Layout.Flow('vertical')
+  })
+  return panel
+}
+panel = ui.Panel({
+  widgets: [utils.get_legend("Clases MB Pampa"),
+  get_panel_chart_ts()]
+  
+})
+ui.root.add(panel)

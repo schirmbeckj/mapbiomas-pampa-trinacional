@@ -1,0 +1,53 @@
+/**** Start of imports. If edited, may not auto-convert in the playground. ****/
+var table = ee.FeatureCollection("projects/mapbiomas-workspace/AMOSTRAS/PAMPA_COLL4/amostras_controle_regiao1");
+/***** End of imports. If edited, may not auto-convert in the playground. *****/
+ 
+var ano = 2019
+
+var bioma1 = 'PampaBrasil'
+var bioma2 = 'PampaArgentina'
+var bioma3 = 'PampaUruguay'
+
+
+var mosaic_temp = ee.ImageCollection('projects/MapBiomas_Pampa/MOSAICS/mosaics_c1')
+var mosaic_br= ee.ImageCollection('projects/mapbiomas-workspace/MOSAICOS/workspace-c3')
+
+var limitepampatri = ee.FeatureCollection('projects/MapBiomas_Pampa/ANCILLARY_DATA/pampa-trinacional')
+print(limitepampatri)
+
+var cartas = ee.FeatureCollection("projects/MapBiomas_Pampa/ANCILLARY_DATA/CartasPampaTrinacional")
+                    
+var pontos = ee.FeatureCollection("projects/MapBiomas_Pampa/ANCILLARY_DATA/CartasPampaTrinacional_pts")
+                
+                    
+var visParMedian = {'bands':['median_swir1','median_nir','median_red'], 'gain':[0.08, 0.06,0.2],'gamma':0.5 };
+
+var prontos = mosaic_temp.filterBounds(limitepampatri)
+                  .filterMetadata('year', 'equals', ano)
+
+var prontosbr = mosaic_br.filterBounds(limitepampatri)
+                  .filterMetadata('year', 'equals', ano)
+
+                  
+var prontosBR = prontosbr.filterMetadata('biome', 'equals','PAMPA')
+var prontosAR = prontos.filterMetadata('biome', 'equals',bioma2)
+var prontosUY = prontos.filterMetadata('biome', 'equals',bioma3)                  
+
+Map.addLayer(prontosBR, visParMedian, 'Brasil '+ ano);
+Map.addLayer(prontosAR, visParMedian, 'Argentina'+ ano);
+Map.addLayer(prontosUY, visParMedian, 'Uruguai '+ ano);
+
+var blank = ee.Image(0).mask(0);
+var outline = blank.paint(limitepampatri, 'AA0000', 2); 
+var visPar = {'palette':'FF0000','opacity': 1};                 
+Map.addLayer(outline, visPar, 'Limite Bioma', true);                       
+                      
+                  
+var blank = ee.Image(0).mask(0);
+var outline = blank.paint(cartas, 'AA0000', 2); 
+var visPar = {'palette':'000000','opacity': 1};
+Map.addLayer(outline, visPar, 'Cartas', false);
+
+Map.addLayer(pontos,{}, 'Pontos', false);
+
+

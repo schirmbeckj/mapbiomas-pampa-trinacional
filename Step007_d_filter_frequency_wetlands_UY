@@ -1,0 +1,114 @@
+/**** Start of imports. If edited, may not auto-convert in the playground. ****/
+var geometryPampa = 
+    /* color: #d63000 */
+    /* shown: false */
+    ee.Geometry.Polygon(
+        [[[-59.27683278215456, -32.7776232153694],
+          [-58.57819677122126, -34.55939771558131],
+          [-55.786351817394696, -35.51958589417839],
+          [-53.419435902180346, -34.510117869891836],
+          [-52.68153746635557, -32.97334463065463],
+          [-52.982349434365645, -31.851033261033493],
+          [-53.6338826533302, -31.1117475106886],
+          [-55.266636993558414, -30.04962986703914],
+          [-57.07862997612063, -29.875052393684665],
+          [-57.984111086013556, -30.188513598726978],
+          [-58.901819456034005, -31.17817402274323]]]);
+/***** End of imports. If edited, may not auto-convert in the playground. *****/
+ 
+/*var regions_name= ['cristalino',
+'graben_LM',
+'Sierras_Este', 
+'sedimentaria_gnw',
+'basaltica',
+'graben_SL',
+'sedimentaria_Oeste'] 
+*/
+
+var regiao = 'graben_SL';  var versionIn = 'v_2_temp'; var versionOut = 'v_2_freq2';
+
+//var regiao = 'graben_SL';  var versionIn = 'v_1'; var versionOut = 'v_1_gap'
+
+
+
+//var version = '20'
+var bioma = "PampaUruguay"
+
+var dirout = 'projects/MapBiomas_Pampa/WORKSPACE/Uruguay/IC_Clasificacion_final'
+var dirin  = 'projects/MapBiomas_Pampa/WORKSPACE/Uruguay/IC_class_col1_filtros_V2/'
+
+var palettes = require('users/mapbiomas/modules:Palettes.js');
+var classIn = ee.Image( dirin + 'class_' + regiao + '_class_' + versionIn);
+//print(classIn)
+var palettes = require('users/mapbiomas/modules:Palettes.js');
+var vis5 = { 'bands':'classification_2019', 'min': 0, 'max': 45,  'palette': palettes.get('classification5')};
+
+var filtrofreq = function(image_in){
+  ////////Calculando frequencias
+  //////////////////////
+  ////////////////////
+  // General rule
+  var exp = '100*((b(0)+b(1)+b(2)+b(3)+b(4)+b(5)+b(6)+b(7)+b(8)+b(9)+b(10)+b(11)+b(12)+b(13)+b(14)+b(15)' +
+      '+b(16)+b(17)+b(18)+b(19))/20 )';
+  
+
+// get frequency
+// get frequency
+var bosqueFreq = classIn.eq(2).expression(exp);
+var florestacionFreq = classIn.eq(9).expression(exp);
+var umiFreq = classIn.eq(11).expression(exp);
+var grassFreq = classIn.eq(12).expression(exp);
+var agriFreq = classIn.eq(21).expression(exp);
+var anvFreq = classIn.eq(22).expression(exp);
+var aguaFreq = classIn.eq(33).expression(exp);  
+
+
+var vegMask = ee.Image(0)
+                         .where((umiFreq
+                         .add(aguaFreq)
+                         .add(agriFreq)
+                         .add(grassFreq))
+                         .gt(90), 1)
+  
+/////Mapa base: 
+var image_moda = image_in.reduce(ee.Reducer.mode())
+var vegMap = ee.Image(0)
+                        .where(vegMask.eq(1)
+                        .and(agriFreq.add(grassFreq)
+                        .gt(39)), image_moda)
+
+vegMap = vegMap.updateMask(vegMap.neq(0))
+var saida = image_in.where(vegMap.and(image_in.eq(11)), vegMap)
+
+return saida;
+
+}
+
+
+  
+  var saida = filtrofreq(classIn)
+  saida = saida
+  .set('collection', 4)
+  .set('version', versionOut)
+  .set('biome', bioma)
+
+print(classIn)
+print(saida)
+
+Map.addLayer(classIn, vis5, 'image');
+
+Map.addLayer(saida, vis5, 'filtered');
+
+Map.setCenter(-53.89275, -33.67854, 20)
+
+Export.image.toAsset({
+    'image': saida,
+    'description': 'class_' + regiao + '_class_' + versionOut,
+    'assetId': dirout + 'class_' + regiao + '_class_' + versionOut,
+    'pyramidingPolicy': {
+        '.default': 'mode'
+    },
+    'region': geometryPampa,
+    'scale': 30,
+    'maxPixels': 1e13
+});

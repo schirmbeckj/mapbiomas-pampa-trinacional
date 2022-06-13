@@ -1,0 +1,242 @@
+/**** Start of imports. If edited, may not auto-convert in the playground. ****/
+var geometryPampa = 
+    /* color: #d63000 */
+    /* shown: false */
+    ee.Geometry({
+      "type": "GeometryCollection",
+      "geometries": [
+        {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [
+                -59.27683278215456,
+                -32.7776232153694
+              ],
+              [
+                -58.57819677122126,
+                -34.55939771558131
+              ],
+              [
+                -55.786351817394696,
+                -35.51958589417839
+              ],
+              [
+                -53.419435902180346,
+                -34.510117869891836
+              ],
+              [
+                -52.68153746635557,
+                -32.97334463065463
+              ],
+              [
+                -52.982349434365645,
+                -31.851033261033493
+              ],
+              [
+                -53.6338826533302,
+                -31.1117475106886
+              ],
+              [
+                -55.266636993558414,
+                -30.04962986703914
+              ],
+              [
+                -57.07862997612063,
+                -29.875052393684665
+              ],
+              [
+                -57.984111086013556,
+                -30.188513598726978
+              ],
+              [
+                -58.901819456034005,
+                -31.17817402274323
+              ]
+            ]
+          ],
+          "evenOdd": true
+        },
+        {
+          "type": "Point",
+          "coordinates": [
+            -59.034271288360586,
+            -36.35048136901891
+          ]
+        }
+      ],
+      "coordinates": []
+    }),
+    imageVisParam = {"opacity":1,"bands":["classification_2000"],"min":0,"max":45,"palette":["ffffff","129912","1f4423","006400","00ff00","687537","76a5af","29eee4","77a605","935132","bbfcac","45c2a5","b8af4f","f1c232","ffffb2","ffd966","f6b26b","f99f40","e974ed","d5a6bd","c27ba0","fff3bf","ea9999","dd7e6b","aa0000","ff99ff","0000ff","d5d5e5","dd497f","b2ae7c","af2a2a","8a2be2","968c46","0000ff","4fd3ff","645617","f3b4f1","02106f","02106f","c59ff4","ba87f8","e787f8","cca0d4","d082de","cd49e4","e04cfa"]};
+/***** End of imports. If edited, may not auto-convert in the playground. *****/
+ 
+var versionIn = 'v_1_filtLenio'
+var versionOut = 'v_1_filtPz'
+
+
+//var regiao = '1';
+//var regiao = '2';
+//var regiao = '3';
+//var regiao = '4';
+var regiao = '5';
+//var regiao = '6';
+//var regiao = '7'; 
+//var regiao = '8'; 
+//var regiao = '9';
+
+
+var dirout = 'projects/MapBiomas_Pampa/WORKSPACE/Argentina/IC_class_col1_filtros/'
+
+var regioesCollection = ee.FeatureCollection('projects/MapBiomas_Pampa/ANCILLARY_DATA/Zonas_Pampa_ARG_buffer10km_Zona4manual')
+var myRegion = regioesCollection.filterMetadata('idZona', 'equals', regiao) //region_ID
+
+var palettes = require('users/mapbiomas/modules:Palettes.js');
+
+var vis5 = { 'bands':'classification_2000', 'min': 0, 'max': 45,  'palette': palettes.get('classification5')};
+
+var image_in = ee.Image( dirout + 'class_' + regiao + '_class_' + versionIn);
+
+
+// valor1: P, valor2: Ag, valor3: Pz
+var mask3_Pz = function(valor1,valor2,valor3, ano, imagem){
+  var vag = (valor1,valor2)
+  var mask = imagem.select('classification_'+ (parseInt(ano) - 1)).eq(valor1).or(imagem.select('classification_'+ (parseInt(ano) - 1)).eq(valor2))
+        .and(imagem.select('classification_'+ (ano)              ).eq(valor3))
+        .and(imagem.select('classification_'+ (parseInt(ano) + 1)).eq(valor1).or(imagem.select('classification_'+ (parseInt(ano) + 1)).eq(valor2)))
+  var muda_img = imagem.select('classification_'+ (ano)).mask(mask.eq(1)).where(mask.eq(1), valor1);  
+  var img_out = imagem.select('classification_'+ano).blend(muda_img)
+  
+  return img_out;
+}
+
+var mask4_Pz = function(valor1, valor2, valor3, ano, imagem){
+  var vag = (valor1,valor2)
+  var mask = imagem.select('classification_'+ (parseInt(ano) - 1)).eq(valor1).or(imagem.select('classification_'+ (parseInt(ano) - 1)).eq(valor2))
+        .and(imagem.select('classification_'+ (ano)              ).eq(valor3))
+        .and(imagem.select('classification_'+ (parseInt(ano) + 1)).eq(valor3))
+        .and(imagem.select('classification_'+ (parseInt(ano) + 2)).eq(valor1).or(imagem.select('classification_'+ (parseInt(ano) + 2)).eq(valor2)))
+  var muda_img  = imagem.select('classification_'+ (ano)              ).mask(mask.eq(1)).where(mask.eq(1), valor1);  
+  var muda_img1 = imagem.select('classification_'+ (parseInt(ano) + 1)).mask(mask.eq(1)).where(mask.eq(1), valor1); 
+  var img_out = imagem.select('classification_'+ano).blend(muda_img).blend(muda_img1)
+  return img_out;
+}
+
+
+var anos3 = ['2001','2002','2003','2004','2005','2006','2007','2008','2009','2010','2011','2012','2013','2014','2015','2016','2017','2018'];
+var anos4 = ['2001','2002','2003','2004','2005','2006','2007','2008','2009','2010','2011','2012','2013','2014','2015','2016','2017'];
+
+
+var window4years_Pz = function(imagem, valor1, valor2, valor3){
+   var img_out = imagem.select('classification_2000')
+   for (var i_ano=0;i_ano<anos4.length; i_ano++){  
+     var ano = anos4[i_ano];  
+     img_out = img_out.addBands(mask4_Pz(valor1,valor2,valor3,ano, imagem)) }
+     img_out = img_out.addBands(imagem.select('classification_2018'))
+     img_out = img_out.addBands(imagem.select('classification_2019'))
+   return img_out
+}
+
+
+var window3years_Pz = function(imagem, valor1, valor2, valor3){
+   
+   var img_out = imagem.select('classification_2000')
+   for (var i_ano=0;i_ano<anos3.length; i_ano++){  
+     var ano = anos3[i_ano];   
+     img_out = img_out.addBands(mask3_Pz(valor1, valor2, valor3,ano, imagem)) }
+     img_out = img_out.addBands(imagem.select('classification_2019'))
+   return img_out
+}
+
+//put "classification_2018 in the end of bands after gap fill
+var original = image_in.select('classification_2000')
+for (var i_ano=0;i_ano<anos3.length; i_ano++){  
+  var ano = anos3[i_ano]; 
+  original = original.addBands(image_in.select('classification_'+ano)) 
+}
+original = original.addBands(image_in.select('classification_2019'))
+
+var filtered = original
+
+//var ordem_exec = [33, 29, 12, 13,  3,  4, 21]; var versionOut = '2'
+//var ordem_exec = [33, 29, 12, 13,  4,  3, 21]; var versionOut = '3'
+//var ordem_exec = [33, 29,  3, 21, 12, 13,  4]; var versionOut = '4'
+//var ordem_exec = [33, 21,  3, 29, 12, 13,  4]; var versionOut = '5'
+
+
+var mask3last_Pz = function(valor1, valor2, valor3, imagem){
+  var vag = (valor1,valor2)
+  var mask = imagem.select('classification_2017').eq(valor1).or(imagem.select('classification_2017').eq(valor2))
+        .and(imagem.select('classification_2018').eq(valor1).or(imagem.select('classification_2018').eq(valor2))
+        .and(imagem.select('classification_2019').eq(valor3)))
+  var muda_img = imagem.select('classification_2019').mask(mask.eq(1)).where(mask.eq(1), valor1);  
+  var img_out = imagem.select('classification_2000')
+  img_out = img_out.addBands([imagem.select('classification_2001'),
+                              imagem.select('classification_2002'),
+                              imagem.select('classification_2003'),
+                              imagem.select('classification_2004'),
+                              imagem.select('classification_2005'),
+                              imagem.select('classification_2006'),
+                              imagem.select('classification_2007'),
+                              imagem.select('classification_2008'),
+                              imagem.select('classification_2009'),
+                              imagem.select('classification_2010'),
+                              imagem.select('classification_2011'),
+                              imagem.select('classification_2012'),
+                              imagem.select('classification_2013'),
+                              imagem.select('classification_2014'),
+                              imagem.select('classification_2015'),
+                              imagem.select('classification_2016'),
+                              imagem.select('classification_2017'),
+                              imagem.select('classification_2018')])
+  var img_out = img_out.addBands(imagem.select('classification_2019').blend(muda_img))
+  return img_out;
+}
+
+
+
+
+print(filtered)
+
+
+//Ejecucion de los filtros
+//TOMA LA IMAGEN ORIGINA QUE SE LLAMA FILTERED Y BUSCA SITUACIONES EN QUE Pz (12, valor3) ESTE ENTRE P(15, valor1) O Ag (18, valor2)
+//REEMPLAZA LOS Pz POR P
+//APLICA FILTRO DE 3 Y 4 AÑOS Y FILTRO DE FINAL
+
+filtered = window3years_Pz(filtered, 15, 18, 12)
+filtered = window4years_Pz (filtered, 15, 18, 12)
+
+filtered = mask3last_Pz (15, 18, 12, filtered)
+
+
+
+Map.addLayer(filtered, vis5, 'filtered');
+Map.addLayer(original, vis5, 'original');
+
+
+filtered = filtered.set('version', versionOut)
+
+
+
+Export.image.toAsset({
+    'image': filtered,
+    'description': 'class_' + regiao + '_class_' + versionOut,
+    'assetId': dirout + 'class_' + regiao + '_class_' + versionOut,
+    'pyramidingPolicy': {
+        '.default': 'mode'
+    },
+    'region': myRegion.geometry().bounds(),
+    'scale': 30,
+    'maxPixels': 1e13
+});
+
+var year = [2019]
+
+var calcula_acuracia = 1
+var conf_mat = 1
+
+if (calcula_acuracia == 1){
+var acura_region = require('users/deabelle/MB_Pampa_ARG:DescargarMatrizConfusionZonasTimedOut.js').acura_region; 
+
+  var acc = acura_region(filtered.select('classification_' + year) ,myRegion,conf_mat) 
+  }

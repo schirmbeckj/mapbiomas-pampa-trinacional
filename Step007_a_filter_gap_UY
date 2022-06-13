@@ -1,0 +1,177 @@
+/**** Start of imports. If edited, may not auto-convert in the playground. ****/
+var geometryPampa = 
+    /* color: #d63000 */
+    /* shown: false */
+    ee.Geometry.Polygon(
+        [[[-59.27683278215456, -32.7776232153694],
+          [-58.57819677122126, -34.55939771558131],
+          [-55.786351817394696, -35.51958589417839],
+          [-53.419435902180346, -34.510117869891836],
+          [-52.68153746635557, -32.97334463065463],
+          [-52.982349434365645, -31.851033261033493],
+          [-53.6338826533302, -31.1117475106886],
+          [-55.266636993558414, -30.04962986703914],
+          [-57.07862997612063, -29.875052393684665],
+          [-57.984111086013556, -30.188513598726978],
+          [-58.901819456034005, -31.17817402274323]]]);
+/***** End of imports. If edited, may not auto-convert in the playground. *****/
+ 
+/*var regions_name= ['cristalino',
+'graben_LM',
+'Sierras_Este', 
+'sedimentaria_gnw',
+'basaltica',
+'graben_SL',
+'sedimentaria_Oeste'] 
+*/
+
+
+var regiao = 'basaltica';  var versionIn = 'v_2'; var versionOut = 'v_2_gap';
+
+//var regiao = 'graben_SL';  var versionIn = 'v_1'; var versionOut = 'v_1_gap'
+
+//var regiao = 2;  var versionIn = '7_f'; var versionOut = 'v_2_gap'
+//var regiao = 3;  var versionIn = '7_f'; var versionOut = 'v_2_gap'
+//var regiao = 4;  var versionIn = '7_f'; var versionOut = 'v_2_gap'
+//var regiao = 5;  var versionIn = '7_f'; var versionOut = 'v_2_gap'
+//var regiao = 6;  var versionIn = '7_f'; var versionOut = 'v_2_gap'
+//var regiao = 7;  var versionIn = '7_f'; var versionOut = 'v_2_gap'
+
+
+//var versionOut = 'v_2_gap'
+
+//var bioma = "PampaUruguay"
+
+var dircol1 = 'projects/MapBiomas_Pampa/WORKSPACE/Uruguay/IC_Clasificaciones_V2/'
+
+var dirout = 'projects/MapBiomas_Pampa/WORKSPACE/Uruguay/IC_class_col1_filtros_V2/'
+
+var regioesCollection = ee.FeatureCollection('projects/MapBiomas_Pampa/WORKSPACE/Uruguay/RegionesUy')
+
+var palettes = require('users/mapbiomas/modules:Palettes.js');
+
+/*
+var image = ee.ImageCollection(dircol4)
+           .filterMetadata('version', 'equals', versionIn)
+           .min()
+           
+print(image)
+
+*/
+
+var image = ee.Image( dircol1 + 'class_' + regiao + '_class_' + versionIn);
+
+//var image = col4.toBands()
+
+print(image)
+
+var bandNames = ee.List([
+    'classification_2001',
+    'classification_2002',
+    'classification_2003',
+    'classification_2004',
+    'classification_2005',
+    'classification_2006',
+    'classification_2007',
+    'classification_2008',
+    'classification_2009',
+    'classification_2010',
+    'classification_2011',
+    'classification_2012',
+    'classification_2013',
+    'classification_2014',
+    'classification_2015',
+    'classification_2016',
+    'classification_2017',
+    'classification_2018',
+    'classification_2019'
+]);
+
+var filtered = bandNames.iterate(function (bandName, previousImage) {
+
+	var currentImage = image.select(ee.String(bandName));
+
+	previousImage = ee.Image(previousImage);
+
+	currentImage = currentImage.unmask(previousImage.select([0]));
+
+	return currentImage.addBands(previousImage);
+
+}, ee.Image(image.select(['classification_2000'])));
+
+filtered = ee.Image(filtered);
+//print(filtered)
+
+// Corrige os ultimos anos. Aplica o filtro da frente pra tras
+var bandNames = ee.List([
+    'classification_2000',
+    'classification_2001',
+    'classification_2002',
+    'classification_2003',
+    'classification_2004',
+    'classification_2005',
+    'classification_2006',
+    'classification_2007',
+    'classification_2008',
+    'classification_2009',
+    'classification_2010',
+    'classification_2011',
+    'classification_2012',
+    'classification_2013',
+    'classification_2014',
+    'classification_2015',
+    'classification_2016',
+    'classification_2017',
+    'classification_2018',
+]);
+
+var filtered2 = bandNames.iterate(function (bandName, previousImage) {
+
+	var currentImage = filtered.select(ee.String(bandName));
+
+	previousImage = ee.Image(previousImage);
+
+	currentImage = currentImage.unmask(previousImage.select(previousImage.bandNames().length().subtract(1)));
+
+	return previousImage.addBands(currentImage);
+
+}, ee.Image(filtered.select(["classification_2019"])));
+
+
+filtered2 = ee.Image(filtered2)
+
+var vis5 = { 'min': 0, 'max': 45,  'palette': palettes.get('classification5')};
+
+Map.addLayer(image.select('classification_2005'), vis5, 'image');
+
+Map.addLayer(filtered2.select('classification_2005'), vis5, 'filtered');
+
+filtered2 = filtered2.set('vesion', '1');
+
+var anos = ['2000','2001','2002','2003','2004','2005','2006','2007','2008','2009','2010','2011','2012','2013','2014','2015','2016','2017','2018','2019']
+
+for (var i_ano=0;i_ano<anos.length; i_ano++){  
+  var ano = anos[i_ano]; 
+  filtered2 = filtered2.addBands(filtered2.select('classification_'+ano).connectedPixelCount(100,false).rename('connect_'+ano))
+}
+
+print(filtered2)
+
+Export.image.toAsset({
+    'image': filtered2,
+    'description': 'class_' + regiao + '_class_' + versionOut,
+    'assetId': dirout + 'class_' + regiao + '_class_' + versionOut,
+    'pyramidingPolicy': {
+        '.default': 'mode'
+    },
+    'region': geometryPampa,
+    'scale': 30,
+    'maxPixels': 1e13
+});
+
+
+var limite = regioesCollection
+var blank = ee.Image(0).mask(0);
+var outline = blank.paint(limite, 'AA0000', 2); 
+var visPar = {'palette':'000000','opacity': 0.6};
+Map.addLayer(outline, visPar, 'regioes', false);

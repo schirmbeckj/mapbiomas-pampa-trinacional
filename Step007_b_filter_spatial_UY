@@ -1,0 +1,147 @@
+/**** Start of imports. If edited, may not auto-convert in the playground. ****/
+var geometryPampa = 
+    /* color: #d63000 */
+    /* shown: false */
+    ee.Geometry.Polygon(
+        [[[-59.27683278215456, -32.7776232153694],
+          [-58.57819677122126, -34.55939771558131],
+          [-55.786351817394696, -35.51958589417839],
+          [-53.419435902180346, -34.510117869891836],
+          [-52.68153746635557, -32.97334463065463],
+          [-52.982349434365645, -31.851033261033493],
+          [-53.6338826533302, -31.1117475106886],
+          [-55.266636993558414, -30.04962986703914],
+          [-57.07862997612063, -29.875052393684665],
+          [-57.984111086013556, -30.188513598726978],
+          [-58.901819456034005, -31.17817402274323]]]);
+/***** End of imports. If edited, may not auto-convert in the playground. *****/
+ 
+
+var regiao = 'basaltica'; 
+//var regiao = 'graben_SL';
+
+/*'cristalino',
+'graben_LM',
+'Sierras_Este', 
+'sedimentaria_gnw',
+'basaltica',
+'graben_SL',
+'sedimentaria_Oeste'
+*/
+
+var versionIn = 'v_2_gap'
+var versionOut = 'v_2_esp'
+
+var dirout = 'projects/MapBiomas_Pampa/WORKSPACE/Uruguay/IC_class_col1_filtros_V2/'
+
+var regioesCollection = ee.FeatureCollection('projects/MapBiomas_Pampa/WORKSPACE/Uruguay/RegionesUy')
+
+var palettes = require('users/mapbiomas/modules:Palettes.js');
+
+// alterr
+
+//var class4GAP =  ee.Image('projects/MapBiomas_Pampa/WORKSPACE/Uruguay/IC_Clasificaciones/'+ 'class_' + regiao + '_class_v_2') 
+var class4GAP =  ee.Image(dirout + 'class_' + regiao + '_class_' + versionIn);
+
+//var class4GAP = ee.Image('projects/mapbiomas-workspace/AMOSTRAS/col4/PAMPA/class_col4_filtros/'+ String(regiao) +'-RF85a18_v' + versionIn)
+var palettes = require('users/mapbiomas/modules:Palettes.js');
+var pal = palettes.get('classification2');
+var vis5a = {
+      bands: 'classification_2000',
+     'min': 0, 'max': 45,  'palette': palettes.get('classification5')};
+     
+var vis5b = {
+      'min': 0, 'max': 45,  'palette': palettes.get('classification5')};
+      
+Map.addLayer(class4GAP.select('classification_2019'), vis5b, 'Pre Filtro GAP');
+
+var ano = '2000'
+var moda_00 = class4GAP.select('classification_' + ano).focal_mode(1, 'square', 'pixels')
+moda_00 = moda_00.mask(class4GAP.select('connect_'+ano).lte(6))
+var class_outTotal = class4GAP.select('classification_'+ano).blend(moda_00)
+//var kernel = ee.Kernel.square(1)
+//var neighs = class4GAP.select('classification_'+ano).neighborhoodToBands(kernel)//.mask(region)
+//var majority = neighs.reduce(ee.Reducer.mode()).rename('classification_'+ano)
+
+//print(class_outTotal)
+//Map.addLayer(class_outTotal, vis5a, 'class1 MODA');
+
+var anos = ['2001','2002','2003','2004','2005','2006','2007','2008','2009','2010','2011','2012','2013','2014','2015','2016','2017','2018','2019'];
+for (var i_ano=0;i_ano<anos.length; i_ano++){  
+  var ano = anos[i_ano]; 
+  var moda = class4GAP.select('classification_'+ano).focal_mode(1, 'square', 'pixels')
+  moda = moda.mask(class4GAP.select('connect_'+ano).lte(6))
+  var class_out = class4GAP.select('classification_'+ano).blend(moda)
+  class_outTotal = class_outTotal.addBands(class_out)
+}
+print(class_outTotal)
+
+Map.addLayer(class_outTotal.select('classification_2019'), vis5b, 'Pos Filtro GAP');
+
+
+Export.image.toAsset({
+    'image': class_outTotal,
+    'description': 'class_' + regiao + '_class_' + versionOut,
+    'assetId': dirout + 'class_' + regiao + '_class_' + versionOut,
+    'pyramidingPolicy': {
+        '.default': 'mode'
+    },
+    'region': geometryPampa,
+    'scale': 30,
+    'maxPixels': 1e13
+});
+
+
+//var anos3 = ['1985','1986','1987','1988','1989','1990','1991','1992','1993','1994','1995','1996','1997','1998','1999','2000','2001','2002','2003','2004','2005','2006','2007','2008','2009','2010','2011','2012','2013','2014','2015','2016','2017','2018'];
+////put "classification_2018 in the end of bands after gap fill
+//var original = class4Gap.select('classification_1985')
+//for (var i_ano=0;i_ano<anos3.length; i_ano++){  
+//  var ano = anos3[i_ano]; 
+//  original = original.addBands(class4Gap.select('classification_'+ano)) 
+//}
+//
+//
+//
+////
+//
+//var majorityFilter(self, params) {
+//
+//   //Generate a mask from the class value
+//   classMask = self.image.eq(params['classValue'])
+//
+//   //Labeling the group of pixels until 100 pixels connected
+//   labeled = classMask.mask(classMask).connectedPixelCount(100, True)
+//
+//   //Select some groups of connected pixels
+//   region = labeled.lt(params['maxSize'])
+//
+//   //Squared kernel with size shift 1
+//   //[[p(x-1,y+1), p(x,y+1), p(x+1,y+1)]
+//   //[ p(x-1,  y), p( x,y ), p(x+1,  y)]
+//   //[ p(x-1,y-1), p(x,y-1), p(x+1,y-1)]
+//   kernel = ee.Kernel.square(1)
+//
+//   //Find neighborhood
+//   neighs = self.image.neighborhoodToBands(kernel).mask(region)
+//
+//   //Reduce to majority pixel in neighborhood
+//   majority = neighs.reduce(ee.Reducer.mode())
+//
+//   //Replace original values for new values
+//   filtered = self.image.where(region, majority)
+//
+//   return filtered.byte()
+//}
+//
+////
+//// Método para reclassificar grupos de pixels de mesma classe agrupados
+//// @param  {list<dictionary>} filterParams [{classValue: 1, maxSize: 3},{classValue: 2, maxSize: 5}]
+//// @return {ee.Image}  Imagem classificada filtrada
+////
+//
+//
+//var spatialFilter(self, filterParams):
+//    for params in filterParams:
+//        self.image = self._majorityFilter(params)
+//return self.image
+//
